@@ -3,3 +3,16 @@ A new Messenger desktop app, since the official one is discontinued since 12.12.
 
 The better part:
 It doesn't force edge onto you.
+
+## Installation
+- Select a release from Releases on the right
+- Run the installer
+- If "Windows protected your PC" (Windows SmartScreen) pops up:
+    - Click More Info -> Run Anyways
+
+### Releases (For Developers)
+- Install deps once: `npm install`.
+- Build the installer: `npm run build` (outputs to `dist/`).
+- Create a tag: `git tag v1.0.0` then `git push origin v1.0.0`.
+- Draft a GitHub Release for that tag and upload the `Better Messenger Setup x.y.z.exe` from `dist/`
+- Add release notes: brief summary

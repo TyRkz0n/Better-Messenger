@@ -1,5 +1,5 @@
 {
-  "name": "fb-messages",
+  "name": "better-messenger",
   "version": "1.0.0",
   "author": "local",
   "description": "Facebook Messages Wrapper",
@@ -13,7 +13,12 @@
   "productName": "Better Messenger",
   "icon": "assets/icon.ico",
   "win": {
-    "target": "nsis"
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ]
   },
   "nsis": {
     "oneClick": false,

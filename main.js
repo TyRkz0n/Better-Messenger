@@ -23,23 +23,29 @@ function isAllowedUrl(url) {
   try {
     const u = new URL(url);
 
-    // Only allow Facebook domains
     if (!u.hostname.endsWith('facebook.com')) {
       return false;
     }
 
-    // Before login: allow login/security paths
     if (!loginComplete) {
       return ALLOWED_PATH_PREFIXES.some(p =>
         u.pathname.startsWith(p)
       );
     }
 
-    // After login: strictly allow messages only
     return u.pathname.startsWith('/messages');
   } catch {
     return false;
   }
+}
+
+/**
+ * Extract unread count from Facebook page title
+ * Example: "(3) Messenger"
+ */
+function extractUnreadCount(title) {
+  const match = title.match(/^\((\d+)\)/);
+  return match ? parseInt(match[1], 10) : 0;
 }
 
 function createWindow() {
@@ -56,7 +62,7 @@ function createWindow() {
   win.loadURL('https://www.facebook.com/messages');
 
   /**
-   * Detect successful login when Messages loads
+   * Detect successful login
    */
   win.webContents.on('did-navigate', (_, url) => {
     if (url.includes('/messages')) {
@@ -65,7 +71,19 @@ function createWindow() {
   });
 
   /**
-   * Block navigation attempts
+   * Unread badge handling (Windows taskbar)
+   */
+  win.webContents.on('page-title-updated', (event, title) => {
+    event.preventDefault();
+
+    const unread = extractUnreadCount(title);
+
+    // Windows 10/11 supports numeric taskbar badges
+    app.setBadgeCount(unread);
+  });
+
+  /**
+   * Navigation lockdown
    */
   win.webContents.on('will-navigate', (event, url) => {
     if (!isAllowedUrl(url)) {
@@ -73,9 +91,6 @@ function createWindow() {
     }
   });
 
-  /**
-   * Block popup / new window navigation
-   */
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (!isAllowedUrl(url)) {
       return { action: 'deny' };
@@ -87,7 +102,6 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  // Auto-start on Windows login
   app.setLoginItemSettings({
     openAtLogin: true
   });

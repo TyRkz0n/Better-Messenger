@@ -1,10 +1,26 @@
 
+
+// Prevent multiple instances (must be after app is required)
 const { app, BrowserWindow, Notification } = require('electron');
 
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (win) {
+      win.show();
+      win.focus();
+    }
+  });
+}
 
 let win;
 let loginComplete = false;
-let lastUnreadCount = 0;
+
+// Removed duplicate require statement
+// const { app, BrowserWindow, Notification } = require('electron');
+
 let lastNotifiedUnread = 0;
 let unreadZeroTimer = null;
 let unreadZeroSince = null;
@@ -46,7 +62,6 @@ function isAllowedUrl(url) {
   }
 }
 
-
 /**
  * Extract unread count from Facebook page title
  * Example: "(3) Messenger"
@@ -80,6 +95,7 @@ function showNotification(unread) {
 
 const { Tray, Menu } = require('electron');
 let tray = null;
+let minimizeToTray = process.env.MINIMIZE_TO_TRAY !== 'false';
 
 function createWindow() {
   win = new BrowserWindow({
@@ -93,6 +109,23 @@ function createWindow() {
     }
   });
 
+  // Build application menu with minimize to tray toggle
+  const appMenu = Menu.buildFromTemplate([
+    {
+      label: 'Settings',
+      submenu: [
+        {
+          label: 'Minimize to Tray',
+          type: 'checkbox',
+          checked: minimizeToTray,
+          click: (menuItem) => {
+            minimizeToTray = menuItem.checked;
+          }
+        }
+      ]
+    }
+  ]);
+  Menu.setApplicationMenu(appMenu);
 
   win.loadURL('https://www.facebook.com/messages');
 
@@ -181,9 +214,9 @@ function createWindow() {
     return { action: 'allow' };
   });
 
-  // Minimize to tray on close
+  // Minimize to tray on close (if enabled)
   win.on('close', (event) => {
-    if (!app.isQuiting) {
+    if (minimizeToTray && !app.isQuiting) {
       event.preventDefault();
       win.hide();
       if (!tray) {
@@ -206,11 +239,11 @@ function createWindow() {
   });
 }
 
-
-app.whenReady().then(() => {
-  // Set AppUserModelId for notifications on Windows during development
-  if (process.platform === 'win32') {
-    app.setAppUserModelId(process.execPath);
+if (gotTheLock) {
+  app.whenReady().then(() => {
+  // Set AppUserModelId for notifications on Windows during development only
+  if (process.platform === 'win32' && !app.isPackaged) {
+    app.setAppUserModelId('com.tyrkzon.bettermessenger.dev');
   }
 
   createWindow();
@@ -218,4 +251,5 @@ app.whenReady().then(() => {
   app.setLoginItemSettings({
     openAtLogin: true
   });
-});
+  });
+}

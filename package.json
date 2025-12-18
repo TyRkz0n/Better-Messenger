@@ -1,0 +1,29 @@
+{
+  "name": "fb-messages",
+  "version": "1.0.0",
+  "author": "local",
+  "description": "Facebook Messages Wrapper",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "build": {
+  "appId": "com.better.messenger",
+  "productName": "Better Messenger",
+  "icon": "assets/icon.ico",
+  "win": {
+    "target": "nsis"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  }
+},
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12"
+  }
+}

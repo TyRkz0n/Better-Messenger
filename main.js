@@ -1,7 +1,14 @@
-const { app, BrowserWindow } = require('electron');
+
+const { app, BrowserWindow, Notification } = require('electron');
+
 
 let win;
 let loginComplete = false;
+let lastUnreadCount = 0;
+let lastNotifiedUnread = 0;
+let unreadZeroTimer = null;
+let unreadZeroSince = null;
+let pendingNotifyUnread = 0;
 
 /**
  * Facebook paths required for login / security flows
@@ -39,6 +46,7 @@ function isAllowedUrl(url) {
   }
 }
 
+
 /**
  * Extract unread count from Facebook page title
  * Example: "(3) Messenger"
@@ -46,6 +54,28 @@ function isAllowedUrl(url) {
 function extractUnreadCount(title) {
   const match = title.match(/^\((\d+)\)/);
   return match ? parseInt(match[1], 10) : 0;
+}
+
+/**
+ * Show a push notification for new messages
+ */
+function showNotification(unread) {
+  if (Notification.isSupported()) {
+    const notif = new Notification({
+      title: 'Better Messenger',
+      body: `You have ${unread} unread message${unread > 1 ? 's' : ''}.`
+    });
+    notif.on('click', () => {
+      if (win) {
+        win.show();
+        win.focus();
+      }
+      if (app) {
+        app.focus({ steal: true });
+      }
+    });
+    notif.show();
+  }
 }
 
 const { Tray, Menu } = require('electron');
@@ -58,11 +88,22 @@ function createWindow() {
     icon: __dirname + '/assets/icon.ico',
     autoHideMenuBar: true,
     webPreferences: {
-      nodeIntegration: false
+      nodeIntegration: false,
+      contextIsolation: false // Allow exposing debug function for devtools
     }
   });
 
+
   win.loadURL('https://www.facebook.com/messages');
+
+  // Expose debug function for notifications in DevTools
+  win.webContents.once('did-finish-load', () => {
+    win.webContents.executeJavaScript(`
+      window.debugNotification = function() {
+        new window.Notification('Debug Notification', { body: 'This is a test notification.' }).show && window.Notification.prototype.show.call(this);
+      };
+    `);
+  });
 
   /**
    * Detect successful login
@@ -76,6 +117,7 @@ function createWindow() {
   /**
    * Unread badge handling (Windows taskbar)
    */
+
   win.webContents.on('page-title-updated', (event, title) => {
     event.preventDefault();
 
@@ -83,6 +125,44 @@ function createWindow() {
 
     // Windows 10/11 supports numeric taskbar badges
     app.setBadgeCount(unread);
+
+    // Track when unread count stays 0 for more than 3 seconds
+    if (unread === 0) {
+      if (!unreadZeroSince) {
+        unreadZeroSince = Date.now();
+      }
+      if (unreadZeroTimer) {
+        clearTimeout(unreadZeroTimer);
+      }
+      unreadZeroTimer = setTimeout(() => {
+        unreadZeroSince = Date.now();
+        unreadZeroTimer = null;
+      }, 3000); // 3 seconds
+    } else {
+      // Only notify if unread > 0 and we were at 0 for at least 3 seconds
+      const now = Date.now();
+      if (
+        unread !== lastNotifiedUnread &&
+        unread > 0 &&
+        unread > lastUnreadCount &&
+        unreadZeroSince &&
+        now - unreadZeroSince >= 3000
+      ) {
+        showNotification(unread);
+        lastNotifiedUnread = unread;
+      }
+      // Reset zero timer if unread > 0
+      if (unreadZeroTimer) {
+        clearTimeout(unreadZeroTimer);
+        unreadZeroTimer = null;
+      }
+      unreadZeroSince = null;
+    }
+    // Reset lastNotifiedUnread if unread goes to 0
+    if (unread === 0) {
+      lastNotifiedUnread = 0;
+    }
+    lastUnreadCount = unread;
   });
 
   /**
@@ -126,7 +206,13 @@ function createWindow() {
   });
 }
 
+
 app.whenReady().then(() => {
+  // Set AppUserModelId for notifications on Windows during development
+  if (process.platform === 'win32') {
+    app.setAppUserModelId(process.execPath);
+  }
+
   createWindow();
 
   app.setLoginItemSettings({

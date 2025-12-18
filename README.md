@@ -10,6 +10,12 @@ It doesn't force edge onto you.
 - If "Windows protected your PC" (Windows SmartScreen) pops up:
     - Click More Info -> Run Anyways
 
+### Disable minimize to tray
+- open app
+- press ALT
+- Top left corner will have "Settings" button
+- Click, uncheck minimize to tray
+
 ### Releases (For Developers)
 - Install deps once: `npm install`.
 - Build the installer: `npm run build` (outputs to `dist/`).

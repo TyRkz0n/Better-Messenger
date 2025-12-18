@@ -48,6 +48,9 @@ function extractUnreadCount(title) {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+const { Tray, Menu } = require('electron');
+let tray = null;
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
@@ -96,6 +99,30 @@ function createWindow() {
       return { action: 'deny' };
     }
     return { action: 'allow' };
+  });
+
+  // Minimize to tray on close
+  win.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      win.hide();
+      if (!tray) {
+        tray = new Tray(__dirname + '/assets/icon.ico');
+        const contextMenu = Menu.buildFromTemplate([
+          { label: 'Show Messenger', click: () => { win.show(); } },
+          { label: 'Quit', click: () => {
+              app.isQuiting = true;
+              app.quit();
+            }
+          }
+        ]);
+        tray.setToolTip('Better Messenger');
+        tray.setContextMenu(contextMenu);
+        tray.on('double-click', () => {
+          win.show();
+        });
+      }
+    }
   });
 }
 
